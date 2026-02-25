@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squatty Dino - Instant Start</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #f7f7f7;
+            font-family: 'VT323', monospace;
+            color: #535353;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #video { display: none; }
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            z-index: 10;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        h1 { font-size: 6rem; margin: 0; line-height: 1; text-transform: uppercase; }
+
+        #message-box {
+            background: #535353;
+            color: white;
+            padding: 20px 40px;
+            font-size: 2.5rem;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        #sub-text {
+            font-size: 1.8rem;
+            color: #535353;
+            margin-top: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 15px;
+            display: inline-block;
+        }
+
+        /* Calibration Bar */
+        #progress-wrapper {
+            width: 400px; height: 25px; border: 4px solid #535353;
+            margin-top: 20px; display: none; position: relative; background: white;
+        }
+        #progress-fill { width: 0%; height: 100%; background: #535353; transition: width 0.1s linear; }
+
+        /* Game Over Retry Button */
+        #retry-btn {
+            pointer-events: auto;
+            background: white;
+            color: #535353;
+            border: 4px solid #535353;
+            padding: 15px 50px;
+            font-size: 2rem;
+            font-family: 'VT323', monospace;
+            cursor: pointer;
+            margin-top: 40px;
+            text-transform: uppercase;
+            font-weight: bold;
+            display: none; 
+        }
+        #retry-btn:hover { background: #535353; color: white; }
+
+        #score-board {
+            position: absolute; top: 20px; right: 40px;
+            font-size: 4rem; font-weight: bold; z-index: 5; display: none;
+        }
+
+        #debug-console {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(255,0,0,0.8); color: white;
+            font-family: sans-serif; font-size: 14px; padding: 10px;
+            display: none; z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="debug-console"></div>
+    <video id="video" playsinline></video>
+    <canvas id="output"></canvas>
+    
+    <div id="score-board">0</div>
+
+    <div id="ui-layer">
+        <h1 id="title">SQUAT DINO</h1>
+        
+        <div id="message-box">Requesting Camera...</div>
+        <div id="sub-text" style="display:none"></div>
+        
+        <div id="progress-wrapper"><div id="progress-fill"></div></div>
+
+        <button id="retry-btn">TRY AGAIN</button>
+    </div>
+</div>
+
+<script>
+    // --- UTILS ---
+    function logError(msg) {
+        const d = document.getElementById('debug-console');
+        d.style.display = 'block';
+        d.innerText = "ERROR: " + msg;
+        console.error(msg);
+    }
+    
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 1.1;
+            window.speechSynthesis.speak(u);
+        }
+    }
+
+    // --- DOM ---
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('output');
+    const ctx = canvas.getContext('2d');
+    const msgBox = document.getElementById('message-box');
+    const subText = document.getElementById('sub-text');
+    const progressWrapper = document.getElementById('progress-wrapper');
+    const progressFill = document.getElementById('progress-fill');
+    const retryBtn = document.getElementById('retry-btn');
+    const scoreBoard = document.getElementById('score-board');
+    const uiTitle = document.getElementById('title');
+
+    // --- STATE ---
+    let detector;
+    let state = 'INIT'; // INIT, LOADING_MODEL, COUNTDOWN, CALIB_STAND, PLAYING, GAMEOVER
+    let noseY = 0;
+    
+    // Calibration Data
+    let standY = 0; // The "Zero" point
+    
+    // Stability
+    let stabilityTimer = 0;
+    let lastNoseY = 0;
+    const FRAMES_TO_LOCK = 50; // Faster lock (~0.8s)
+    const STABILITY_THRESHOLD = 12; // Forgiving threshold
+
+    // Game
+    let dino = { y: 0 };
+    let pipes = [];
+    let score = 0;
+    let frameCount = 0;
+    const pipeSpeed = 8;
+    const pipeSpawnRate = 100;
+    const pipeGap = 280;
+
+    // --- AUTO START ---
+    window.addEventListener('load', async () => {
+        // 1. Immediate Camera Request
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480 },
+                audio: false
+            });
+            video.srcObject = stream;
+            await new Promise(r => video.onloadedmetadata = r);
+            video.play();
+            
+            loadModel();
+            
+        } catch (err) {
+            msgBox.innerText = "CAMERA BLOCKED";
+            subText.innerText = "Please allow camera access in browser settings.";
+            subText.style.display = 'block';
+            logError(err.message);
+        }
+    });
+
+    async function loadModel() {
+        msgBox.innerText = "Loading AI...";
+        try {
+            const detectorConfig = {modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING};
+            detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
+            
+            resize();
+            window.addEventListener('resize', resize);
+            
+            // Start loops immediately
+            detectLoop();
+            gameLoop();
+
+            // Start Calibration Sequence
+            startCalibrationSequence();
+
+        } catch (err) {
+            logError("AI Failed: " + err.message);
+        }
+    }
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    // --- LOOPS ---
+    async function detectLoop() {
+        if (detector) {
+            try {
+                const poses = await detector.estimatePoses(video);
+                if (poses.length > 0) {
+                    const nose = poses[0].keypoints.find(k => k.name === 'nose');
+                    if (nose && nose.score > 0.3) {
+                        noseY = nose.y;
+                    }
+                }
+            } catch(e) {}
+        }
+        requestAnimationFrame(detectLoop);
+    }
+
+    function gameLoop() {
+        // Clear
+        ctx.fillStyle = "#f7f7f7";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Ghost Video
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+        ctx.filter = 'grayscale(100%) opacity(15%)';
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        // State Machine
+        if (state === 'CALIB_STAND') {
+            runCalibration();
+        } else if (state === 'PLAYING') {
+            runGame();
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // --- SEQUENCE ---
+    function startCalibrationSequence() {
+        state = 'COUNTDOWN';
+        
+        // 5 Second countdown to step back
+        let count = 5;
+        msgBox.innerText = `STEP BACK: ${count}`;
+        subText.innerText = "Ensure full body visibility";
+        subText.style.display = 'block';
+        speak("Step back.");
+
+        let timer = setInterval(() => {
+            count--;
+            msgBox.innerText = `STEP BACK: ${count}`;
+            if (count === 2) speak("Get ready.");
+            
+            if (count <= 0) {
+                clearInterval(timer);
+                state = 'CALIB_STAND';
+                msgBox.innerText = "STAND TALL";
+                subText.innerText = "Freeze!";
+                progressWrapper.style.display = 'block';
+                speak("Stand up tall and freeze.");
+                stabilityTimer = 0;
+            }
+        }, 1000);
+    }
+
+    function runCalibration() {
+        // Draw Line
+        let yScreen = (noseY / 480) * canvas.height;
+        ctx.beginPath();
+        ctx.moveTo(0, yScreen);
+        ctx.lineTo(canvas.width, yScreen);
+        ctx.strokeStyle = "#535353";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10,10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Check Stability
+        let diff = Math.abs(noseY - lastNoseY);
+        // Only progress if nose detected (>0) and stable
+        if (diff < STABILITY_THRESHOLD && noseY > 0) {
+            stabilityTimer++;
+            progressFill.style.backgroundColor = "#535353";
+        } else {
+            stabilityTimer = Math.max(0, stabilityTimer - 2); // Decay
+            progressFill.style.backgroundColor = "#ff4757";
+        }
+        lastNoseY = noseY;
+
+        let pct = (stabilityTimer / FRAMES_TO_LOCK) * 100;
+        progressFill.style.width = pct + "%";
+
+        if (stabilityTimer >= FRAMES_TO_LOCK) {
+            // Done!
+            standY = noseY;
+            speak("Let's go!");
+            startGame();
+        }
+    }
+
+    function startGame() {
+        state = 'PLAYING';
+        msgBox.style.display = 'none';
+        subText.style.display = 'none';
+        progressWrapper.style.display = 'none';
+        retryBtn.style.display = 'none';
+        uiTitle.style.display = 'none';
+        scoreBoard.style.display = 'block';
+        
+        score = 0;
+        scoreBoard.innerText = "0";
+        pipes = [];
+        frameCount = 0;
+        dino.y = canvas.height / 2;
+    }
+
+    function runGame() {
+        // --- MOVEMENT LOGIC (Simplified) ---
+        // Instead of waiting for a calibrated SquatY, we calculate a Delta.
+        // We assume moving your nose down by ~150 webcam pixels = Full Squat.
+        // We multiply the movement by 2.5 to make it responsive.
+        
+        let delta = noseY - standY; // How far down have we moved?
+        // Note: In webcam, Y increases as you go down.
+        
+        // Apply Sensitivity (Multiplier)
+        // e.g. 1 pixel of body movement = 3 pixels of screen movement
+        let sensitivity = 3.0; 
+        let screenMove = delta * sensitivity;
+        
+        // Target Y is Top (0) + movement
+        let targetY = 0 + screenMove;
+        
+        // Clamp to screen
+        targetY = Math.max(0, Math.min(canvas.height - 50, targetY));
+
+        // Lerp for smoothness
+        dino.y += (targetY - dino.y) * 0.15;
+
+        // Draw Dino
+        let size = 50;
+        ctx.fillStyle = "#535353";
+        ctx.fillRect(canvas.width/4, dino.y, size, size);
+        ctx.fillStyle = "white"; 
+        ctx.fillRect(canvas.width/4 + 35, dino.y + 10, 5, 5);
+
+        // Pipe Spawner
+        if (frameCount % pipeSpawnRate === 0) {
+            let topH = Math.random() * (canvas.height - pipeGap - 100) + 50;
+            pipes.push({
+                x: canvas.width,
+                width: 80,
+                topH: topH,
+                passed: false
+            });
+        }
+
+        // Pipe Updater
+        for (let i = pipes.length - 1; i >= 0; i--) {
+            let p = pipes[i];
+            p.x -= pipeSpeed;
+
+            // Draw
+            ctx.fillStyle = "#535353";
+            ctx.fillRect(p.x, 0, p.width, p.topH); // Top
+            let botY = p.topH + pipeGap;
+            ctx.fillRect(p.x, botY, p.width, canvas.height - botY); // Bottom
+
+            // Collision
+            let bx = canvas.width / 4;
+            let by = dino.y;
+            
+            if (bx + size > p.x && bx < p.x + p.width) {
+                if (by < p.topH || by + size > botY) {
+                    gameOver();
+                }
+            }
+
+            // Score
+            if (p.x + p.width < bx && !p.passed) {
+                score++;
+                scoreBoard.innerText = score;
+                p.passed = true;
+                speak(score);
+            }
+
+            if (p.x + p.width < 0) pipes.splice(i, 1);
+        }
+        
+        // Floor
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height - 5);
+        ctx.lineTo(canvas.width, canvas.height - 5);
+        ctx.strokeStyle = "#535353";
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        frameCount++;
+    }
+
+    function gameOver() {
+        state = 'GAMEOVER';
+        msgBox.innerText = "GAME OVER";
+        subText.innerText = "Score: " + score;
+        msgBox.style.display = 'block';
+        subText.style.display = 'block';
+        uiTitle.style.display = 'block';
+        retryBtn.style.display = 'inline-block';
+        speak("Game Over.");
+    }
+
+    retryBtn.addEventListener('click', () => {
+        // Just restart the game loop variables, keep calibration
+        startGame();
+    });
+
+</script>
+</body>
+</html>
