@@ -5,7 +5,7 @@ An experimental, open-source browser game controlled entirely by your physical b
 No backend, no installations, no data collection. Everything runs locally in your browser.
 
 ## 🎮 How to Play
-1. Open the [https://brmnkw.github.io/Squad_Bird/].
+1. [Open the game](https://brmnkw.github.io/Squad_Bird/).
 2. Allow camera access (required for AI tracking).
 3. Step back so your entire body is visible.
 4. **Stand Tall** to lock in your calibration.
