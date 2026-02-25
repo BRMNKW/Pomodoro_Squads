@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Squatty Dino - Instant Start</title>
+    <title>Squat Break - Pomodoro Fitness</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
@@ -14,88 +14,86 @@
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
         body {
-            margin: 0;
-            overflow: hidden;
-            background: #f7f7f7;
-            font-family: 'VT323', monospace;
-            color: #535353;
-            user-select: none;
+            margin: 0; overflow: hidden; background: #f7f7f7;
+            font-family: 'VT323', monospace; color: #535353; user-select: none;
         }
 
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+        #app-container {
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
         }
 
+        /* Video & Canvas */
         #video { display: none; }
-        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; display: none; }
 
-        /* UI Layer */
-        #ui-layer {
-            position: absolute;
-            z-index: 10;
-            text-align: center;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+        /* --- UI SCREENS --- */
+        .screen {
+            position: absolute; z-index: 10;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; height: 100%; background: #f7f7f7;
+        }
+        .hidden { display: none !important; }
+
+        h1 { font-size: 6rem; margin: 0 0 30px 0; line-height: 1; text-transform: uppercase; text-align: center; }
+        h2 { font-size: 3rem; margin-bottom: 10px; margin-top: 0; }
+        h3 { font-size: 2rem; margin: 0 0 10px 0; text-transform: uppercase; }
+
+        /* Instructions */
+        .info-box {
+            background: white; border: 4px solid #535353; padding: 20px 40px;
+            font-size: 1.8rem; max-width: 650px; text-align: left;
+            box-shadow: 10px 10px 0px #535353; margin-bottom: 40px;
+        }
+        .info-box ul { padding-left: 20px; margin: 0; }
+        .info-box li { margin-bottom: 10px; }
+
+        /* Timer */
+        #time-display { font-size: 14rem; font-weight: bold; margin: 20px 0; line-height: 1; }
+
+        /* Standard Buttons */
+        .btn {
+            background: white; color: #535353; border: 4px solid #535353;
+            padding: 15px 40px; font-size: 2rem; font-family: 'VT323', monospace;
+            cursor: pointer; text-transform: uppercase; font-weight: bold;
+            transition: all 0.2s; box-shadow: 5px 5px 0px #535353;
+        }
+        .btn:hover:not(:disabled) { background: #535353; color: white; transform: translate(-2px, -2px); box-shadow: 7px 7px 0px #222; }
+        
+        /* Main CTA Button */
+        .cta-btn {
+            background: #FF4757; color: white; border: 4px solid #535353;
+            padding: 20px 60px; font-size: 3rem; font-family: 'VT323', monospace;
+            cursor: pointer; text-transform: uppercase; font-weight: bold;
+            transition: all 0.2s; box-shadow: 8px 8px 0px #535353; margin-top: 40px;
+        }
+        .cta-btn:hover:not(:disabled) { background: #ff6b78; transform: translate(-2px, -2px); box-shadow: 10px 10px 0px #222; }
+        .cta-btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; color: #888; border-color: #888; }
+        
+        /* Option Selectors */
+        .options-row { display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; justify-content: center; }
+        .opt-btn { padding: 10px 20px; font-size: 1.8rem; cursor: pointer; border: 2px solid #535353; background: white; font-family: 'VT323'; transition: 0.1s; }
+        .opt-btn:hover { background: #e0e0e0; }
+        .opt-btn.active { background: #535353; color: white; border-color: #535353; transform: scale(1.05); }
+
+        /* --- GAME UI OVERLAYS --- */
+        #game-ui { background: transparent; pointer-events: none; }
+        #score-board { position: absolute; top: 20px; right: 40px; font-size: 4rem; font-weight: bold; text-shadow: 2px 2px white; }
+        #goal-board { position: absolute; top: 20px; left: 40px; font-size: 3rem; font-weight: bold; text-shadow: 2px 2px white;}
+        
+        #game-msg-box {
+            background: white; border: 4px solid #535353; padding: 20px 40px;
+            font-size: 3.5rem; text-align: center; box-shadow: 10px 10px 0px #535353;
+            pointer-events: auto; /* Allow clicking buttons inside */
         }
 
-        h1 { font-size: 6rem; margin: 0; line-height: 1; text-transform: uppercase; }
-
-        #message-box {
-            background: #535353;
-            color: white;
-            padding: 20px 40px;
-            font-size: 2.5rem;
-            border-radius: 4px;
-            margin-top: 20px;
-        }
-
-        #sub-text {
-            font-size: 1.8rem;
-            color: #535353;
-            margin-top: 10px;
-            background: rgba(255,255,255,0.9);
-            padding: 5px 15px;
-            display: inline-block;
-        }
-
-        /* Calibration Bar */
-        #progress-wrapper {
-            width: 400px; height: 25px; border: 4px solid #535353;
-            margin-top: 20px; display: none; position: relative; background: white;
-        }
+        #progress-wrapper { width: 100%; height: 25px; border: 4px solid #535353; background: white; margin-top: 20px; display: none; }
         #progress-fill { width: 0%; height: 100%; background: #535353; transition: width 0.1s linear; }
 
-        /* Game Over Retry Button */
-        #retry-btn {
-            pointer-events: auto;
-            background: white;
-            color: #535353;
-            border: 4px solid #535353;
-            padding: 15px 50px;
-            font-size: 2rem;
-            font-family: 'VT323', monospace;
-            cursor: pointer;
-            margin-top: 40px;
-            text-transform: uppercase;
-            font-weight: bold;
-            display: none; 
-        }
-        #retry-btn:hover { background: #535353; color: white; }
-
-        #score-board {
-            position: absolute; top: 20px; right: 40px;
-            font-size: 4rem; font-weight: bold; z-index: 5; display: none;
+        /* Recalibrate button during game */
+        #recalibrate-btn {
+            position: absolute; bottom: 30px; left: 30px;
+            font-size: 1.5rem; padding: 10px 20px; pointer-events: auto;
         }
 
         #debug-console {
@@ -108,118 +106,249 @@
 </head>
 <body>
 
-<div id="game-container">
+<div id="app-container">
     <div id="debug-console"></div>
+    
+    <div id="setup-screen" class="screen">
+        <h1>SQUAT BREAK</h1>
+        
+        <div class="info-box">
+            <h2>HOW IT WORKS ⏱️</h2>
+            <ul>
+                <li>Set a timer to focus on your work. Camera stays OFF.</li>
+                <li>When time is up, the alarm sounds and camera activates.</li>
+                <li><b>Stand up tall & freeze</b> to calibrate the AI.</li>
+                <li><b>Squat down</b> to duck. <b>Stand up</b> to jump.</li>
+                <li>Survive until you reach your goal to end your break!</li>
+            </ul>
+        </div>
+
+        <h3>1. Select Focus Time</h3>
+        <div class="options-row" id="time-options">
+            <button class="opt-btn time-btn active" data-val="1">1 Min (Test)</button>
+            <button class="opt-btn time-btn" data-val="15">15 Min</button>
+            <button class="opt-btn time-btn" data-val="25">25 Min</button>
+            <button class="opt-btn time-btn" data-val="45">45 Min</button>
+            <button class="opt-btn time-btn" data-val="60">60 Min</button>
+        </div>
+
+        <h3>2. Select Squat Goal</h3>
+        <div class="options-row" id="goal-options">
+            <button class="opt-btn goal-btn" data-val="5">5 Squats</button>
+            <button class="opt-btn goal-btn active" data-val="10">10 Squats</button>
+            <button class="opt-btn goal-btn" data-val="20">20 Squats</button>
+            <button class="opt-btn goal-btn" data-val="50">50 Squats</button>
+        </div>
+
+        <button id="start-work-btn" class="cta-btn" disabled>LOADING AI...</button>
+    </div>
+
+    <div id="timer-screen" class="screen hidden">
+        <h2 style="font-size: 4rem;">FOCUS MODE</h2>
+        <div id="time-display">25:00</div>
+        <p style="font-size: 2.5rem; margin-bottom: 40px;">Camera is OFF. Get to work!</p>
+        
+        <div style="display: flex; gap: 20px;">
+            <button id="cancel-timer-btn" class="btn" style="font-size: 1.5rem; background: #e0e0e0;">Cancel & Reselect</button>
+            <button id="skip-timer-btn" class="btn" style="font-size: 1.5rem;">Skip to Break (Debug)</button>
+        </div>
+    </div>
+
     <video id="video" playsinline></video>
     <canvas id="output"></canvas>
     
-    <div id="score-board">0</div>
-
-    <div id="ui-layer">
-        <h1 id="title">SQUAT DINO</h1>
+    <div id="game-ui" class="screen hidden">
+        <div id="goal-board">GOAL: 10</div>
+        <div id="score-board">0</div>
         
-        <div id="message-box">Requesting Camera...</div>
-        <div id="sub-text" style="display:none"></div>
-        
-        <div id="progress-wrapper"><div id="progress-fill"></div></div>
+        <div id="game-msg-box">
+            <div id="game-msg-text">INITIATING CAMERA...</div>
+            <div id="progress-wrapper"><div id="progress-fill"></div></div>
+            <button id="game-action-btn" class="btn hidden" style="margin-top: 20px;">ACTION</button>
+        </div>
 
-        <button id="retry-btn">TRY AGAIN</button>
+        <button id="recalibrate-btn" class="btn hidden">🔄 RECALIBRATE</button>
     </div>
+
 </div>
 
 <script>
     // --- UTILS ---
     function logError(msg) {
         const d = document.getElementById('debug-console');
-        d.style.display = 'block';
-        d.innerText = "ERROR: " + msg;
-        console.error(msg);
+        d.style.display = 'block'; d.innerText = "ERROR: " + msg; console.error(msg);
     }
     
     function speak(text) {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = 1.1;
-            window.speechSynthesis.speak(u);
+            u.rate = 1.1; window.speechSynthesis.speak(u);
         }
     }
 
-    // --- DOM ---
-    const video = document.getElementById('video');
+    // --- DOM ELEMENTS ---
+    const setupScreen = document.getElementById('setup-screen');
+    const timerScreen = document.getElementById('timer-screen');
+    const gameUI = document.getElementById('game-ui');
+    const startWorkBtn = document.getElementById('start-work-btn');
+    const timeDisplay = document.getElementById('time-display');
+    const timeBtns = document.querySelectorAll('.time-btn');
+    const goalBtns = document.querySelectorAll('.goal-btn');
+    const skipTimerBtn = document.getElementById('skip-timer-btn');
+    const cancelTimerBtn = document.getElementById('cancel-timer-btn');
+    
     const canvas = document.getElementById('output');
+    const video = document.getElementById('video');
     const ctx = canvas.getContext('2d');
-    const msgBox = document.getElementById('message-box');
-    const subText = document.getElementById('sub-text');
+    
+    const msgBoxText = document.getElementById('game-msg-text');
     const progressWrapper = document.getElementById('progress-wrapper');
     const progressFill = document.getElementById('progress-fill');
-    const retryBtn = document.getElementById('retry-btn');
+    const gameActionBtn = document.getElementById('game-action-btn');
+    const recalibrateBtn = document.getElementById('recalibrate-btn');
     const scoreBoard = document.getElementById('score-board');
-    const uiTitle = document.getElementById('title');
+    const goalBoard = document.getElementById('goal-board');
 
-    // --- STATE ---
+    // --- GLOBAL STATE ---
     let detector;
-    let state = 'INIT'; // INIT, LOADING_MODEL, COUNTDOWN, CALIB_STAND, PLAYING, GAMEOVER
+    let workMinutes = 1; 
+    let targetScore = 10;
+    
+    let timeRemaining = 0;
+    let timerInterval;
+    let videoStream = null;
+
+    // Game State
+    let gameState = 'STOPPED'; // STOPPED, COUNTDOWN, CALIB_STAND, PLAYING, GAMEOVER, WIN
+    let isDetecting = false;
     let noseY = 0;
+    let standY = 0;
     
-    // Calibration Data
-    let standY = 0; // The "Zero" point
-    
-    // Stability
     let stabilityTimer = 0;
     let lastNoseY = 0;
-    const FRAMES_TO_LOCK = 50; // Faster lock (~0.8s)
-    const STABILITY_THRESHOLD = 12; // Forgiving threshold
+    const FRAMES_TO_LOCK = 120; // Approx 2.5 seconds at 60fps for easier calibration
+    const STABILITY_THRESHOLD = 15; // Forgiving threshold
 
-    // Game
-    let dino = { y: 0 };
+    // Game Entities
+    let dino = { y: 0, size: 50 };
     let pipes = [];
     let score = 0;
     let frameCount = 0;
-    const pipeSpeed = 8;
-    const pipeSpawnRate = 100;
+    const pipeSpeed = 9;
+    const pipeSpawnRate = 90;
     const pipeGap = 280;
 
-    // --- AUTO START ---
+    // --- 1. LOAD AI ON BOOT ---
     window.addEventListener('load', async () => {
-        // 1. Immediate Camera Request
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480 },
-                audio: false
-            });
-            video.srcObject = stream;
-            await new Promise(r => video.onloadedmetadata = r);
-            video.play();
+            const config = {modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING};
+            detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, config);
             
-            loadModel();
-            
-        } catch (err) {
-            msgBox.innerText = "CAMERA BLOCKED";
-            subText.innerText = "Please allow camera access in browser settings.";
-            subText.style.display = 'block';
-            logError(err.message);
+            startWorkBtn.innerText = "START FOCUS TIMER";
+            startWorkBtn.disabled = false;
+        } catch (e) {
+            logError("Failed to load AI.");
         }
     });
 
-    async function loadModel() {
-        msgBox.innerText = "Loading AI...";
+    // Handle Time Selection
+    timeBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            timeBtns.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            workMinutes = parseInt(e.target.getAttribute('data-val'));
+        });
+    });
+
+    // Handle Goal Selection
+    goalBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            goalBtns.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            targetScore = parseInt(e.target.getAttribute('data-val'));
+        });
+    });
+
+    // --- 2. POMODORO TIMER LOGIC ---
+    startWorkBtn.addEventListener('click', startTimer);
+    
+    skipTimerBtn.addEventListener('click', () => {
+        clearInterval(timerInterval);
+        triggerBreak();
+    });
+
+    cancelTimerBtn.addEventListener('click', () => {
+        // Go back to setup screen
+        clearInterval(timerInterval);
+        timerScreen.classList.add('hidden');
+        setupScreen.classList.remove('hidden');
+    });
+
+    function startTimer() {
+        setupScreen.classList.add('hidden');
+        gameUI.classList.add('hidden');
+        canvas.style.display = "none";
+        timerScreen.classList.remove('hidden');
+        
+        timeRemaining = workMinutes * 60;
+        updateTimeDisplay();
+        
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            updateTimeDisplay();
+            
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                triggerBreak();
+            }
+        }, 1000);
+    }
+
+    function updateTimeDisplay() {
+        let m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+        let s = (timeRemaining % 60).toString().padStart(2, '0');
+        timeDisplay.innerText = `${m}:${s}`;
+    }
+
+    // --- 3. WAKE UP & START GAME ---
+    async function triggerBreak() {
+        speak("Time to move! Stand up.");
+        
+        timerScreen.classList.add('hidden');
+        canvas.style.display = "block";
+        gameUI.classList.remove('hidden');
+        gameActionBtn.classList.add('hidden');
+        recalibrateBtn.classList.add('hidden');
+        progressWrapper.style.display = "none";
+        
+        goalBoard.innerText = "GOAL: " + targetScore;
+        msgBoxText.innerText = "ACCESSING CAMERA...";
+
         try {
-            const detectorConfig = {modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING};
-            detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
+            // Only request camera if not already streaming
+            if (!videoStream) {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+                video.srcObject = videoStream;
+                await new Promise(r => video.onloadedmetadata = r);
+                video.play();
+            }
             
             resize();
             window.addEventListener('resize', resize);
             
-            // Start loops immediately
-            detectLoop();
-            gameLoop();
+            // Start AI & Game Loops
+            if (!isDetecting) {
+                isDetecting = true;
+                detectLoop();
+                gameLoop();
+            }
 
-            // Start Calibration Sequence
             startCalibrationSequence();
 
         } catch (err) {
-            logError("AI Failed: " + err.message);
+            msgBoxText.innerText = "CAMERA BLOCKED. REFRESH PAGE.";
+            logError("Camera access denied.");
         }
     }
 
@@ -228,16 +357,15 @@
         canvas.height = window.innerHeight;
     }
 
-    // --- LOOPS ---
+    // --- 4. GAME & DETECTION LOOPS ---
     async function detectLoop() {
-        if (detector) {
+        if (!isDetecting) return;
+        if (detector && video.readyState === 4) {
             try {
                 const poses = await detector.estimatePoses(video);
                 if (poses.length > 0) {
                     const nose = poses[0].keypoints.find(k => k.name === 'nose');
-                    if (nose && nose.score > 0.3) {
-                        noseY = nose.y;
-                    }
+                    if (nose && nose.score > 0.3) noseY = nose.y;
                 }
             } catch(e) {}
         }
@@ -245,99 +373,106 @@
     }
 
     function gameLoop() {
-        // Clear
+        if (!isDetecting) return;
+
+        // Clear Screen
         ctx.fillStyle = "#f7f7f7";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Ghost Video
+        // Draw Ghost Video
         ctx.save();
         ctx.scale(-1, 1);
         ctx.translate(-canvas.width, 0);
-        ctx.filter = 'grayscale(100%) opacity(15%)';
+        ctx.filter = 'grayscale(100%) opacity(20%)';
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         ctx.restore();
 
         // State Machine
-        if (state === 'CALIB_STAND') {
-            runCalibration();
-        } else if (state === 'PLAYING') {
-            runGame();
+        if (gameState === 'COUNTDOWN') {
+            // Wait logic handled by timer, background draws normally
+        } else if (gameState === 'CALIB_STAND') {
+            handleCalibration();
+        } else if (gameState === 'PLAYING') {
+            updateGame();
         }
 
         requestAnimationFrame(gameLoop);
     }
 
-    // --- SEQUENCE ---
+    // --- 5. CALIBRATION SEQUENCE ---
+    recalibrateBtn.addEventListener('click', () => {
+        // Allow user to reset mid-game if it's acting weird
+        startCalibrationSequence();
+    });
+
     function startCalibrationSequence() {
-        state = 'COUNTDOWN';
+        gameState = 'COUNTDOWN';
+        msgBoxText.parentElement.style.display = 'block';
+        recalibrateBtn.classList.add('hidden');
+        gameActionBtn.classList.add('hidden');
+        progressWrapper.style.display = "none";
         
-        // 5 Second countdown to step back
         let count = 5;
-        msgBox.innerText = `STEP BACK: ${count}`;
-        subText.innerText = "Ensure full body visibility";
-        subText.style.display = 'block';
+        msgBoxText.innerText = `STEP BACK: ${count}`;
         speak("Step back.");
 
-        let timer = setInterval(() => {
+        // Clear any old sequences
+        if (window.calibTimer) clearInterval(window.calibTimer);
+
+        window.calibTimer = setInterval(() => {
             count--;
-            msgBox.innerText = `STEP BACK: ${count}`;
+            msgBoxText.innerText = `STEP BACK: ${count}`;
             if (count === 2) speak("Get ready.");
             
             if (count <= 0) {
-                clearInterval(timer);
-                state = 'CALIB_STAND';
-                msgBox.innerText = "STAND TALL";
-                subText.innerText = "Freeze!";
-                progressWrapper.style.display = 'block';
+                clearInterval(window.calibTimer);
+                gameState = 'CALIB_STAND';
+                msgBoxText.innerText = "STAND TALL & FREEZE";
+                progressWrapper.style.display = "block";
                 speak("Stand up tall and freeze.");
                 stabilityTimer = 0;
             }
         }, 1000);
     }
 
-    function runCalibration() {
-        // Draw Line
+    function handleCalibration() {
         let yScreen = (noseY / 480) * canvas.height;
         ctx.beginPath();
         ctx.moveTo(0, yScreen);
         ctx.lineTo(canvas.width, yScreen);
         ctx.strokeStyle = "#535353";
         ctx.lineWidth = 2;
-        ctx.setLineDash([10,10]);
+        ctx.setLineDash([15,15]);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Check Stability
         let diff = Math.abs(noseY - lastNoseY);
-        // Only progress if nose detected (>0) and stable
         if (diff < STABILITY_THRESHOLD && noseY > 0) {
             stabilityTimer++;
             progressFill.style.backgroundColor = "#535353";
         } else {
-            stabilityTimer = Math.max(0, stabilityTimer - 2); // Decay
-            progressFill.style.backgroundColor = "#ff4757";
+            stabilityTimer = Math.max(0, stabilityTimer - 2);
+            progressFill.style.backgroundColor = "#ff4757"; // Flash red
         }
         lastNoseY = noseY;
 
         let pct = (stabilityTimer / FRAMES_TO_LOCK) * 100;
         progressFill.style.width = pct + "%";
 
+        // Locked in
         if (stabilityTimer >= FRAMES_TO_LOCK) {
-            // Done!
             standY = noseY;
             speak("Let's go!");
-            startGame();
+            startPlaying();
         }
     }
 
-    function startGame() {
-        state = 'PLAYING';
-        msgBox.style.display = 'none';
-        subText.style.display = 'none';
-        progressWrapper.style.display = 'none';
-        retryBtn.style.display = 'none';
-        uiTitle.style.display = 'none';
-        scoreBoard.style.display = 'block';
+    // --- 6. GAME MECHANICS ---
+    function startPlaying() {
+        gameState = 'PLAYING';
+        
+        msgBoxText.parentElement.style.display = 'none'; 
+        recalibrateBtn.classList.remove('hidden'); // Show recalibrate button
         
         score = 0;
         scoreBoard.innerText = "0";
@@ -346,80 +481,67 @@
         dino.y = canvas.height / 2;
     }
 
-    function runGame() {
-        // --- MOVEMENT LOGIC (Simplified) ---
-        // Instead of waiting for a calibrated SquatY, we calculate a Delta.
-        // We assume moving your nose down by ~150 webcam pixels = Full Squat.
-        // We multiply the movement by 2.5 to make it responsive.
-        
-        let delta = noseY - standY; // How far down have we moved?
-        // Note: In webcam, Y increases as you go down.
-        
-        // Apply Sensitivity (Multiplier)
-        // e.g. 1 pixel of body movement = 3 pixels of screen movement
+    function updateGame() {
+        // Movement: Map Nose Y delta to Screen Y
+        let delta = noseY - standY; 
         let sensitivity = 3.0; 
-        let screenMove = delta * sensitivity;
+        let targetY = delta * sensitivity;
         
-        // Target Y is Top (0) + movement
-        let targetY = 0 + screenMove;
-        
-        // Clamp to screen
-        targetY = Math.max(0, Math.min(canvas.height - 50, targetY));
-
-        // Lerp for smoothness
+        targetY = Math.max(0, Math.min(canvas.height - dino.size, targetY));
         dino.y += (targetY - dino.y) * 0.15;
 
-        // Draw Dino
-        let size = 50;
+        // Draw Player
         ctx.fillStyle = "#535353";
-        ctx.fillRect(canvas.width/4, dino.y, size, size);
+        ctx.fillRect(canvas.width/4, dino.y, dino.size, dino.size);
         ctx.fillStyle = "white"; 
-        ctx.fillRect(canvas.width/4 + 35, dino.y + 10, 5, 5);
+        ctx.fillRect(canvas.width/4 + 35, dino.y + 10, 8, 8);
 
-        // Pipe Spawner
+        // Spawn Pipes
         if (frameCount % pipeSpawnRate === 0) {
             let topH = Math.random() * (canvas.height - pipeGap - 100) + 50;
-            pipes.push({
-                x: canvas.width,
-                width: 80,
-                topH: topH,
-                passed: false
-            });
+            pipes.push({ x: canvas.width, width: 80, topH: topH, passed: false });
         }
 
-        // Pipe Updater
+        // Update Pipes
         for (let i = pipes.length - 1; i >= 0; i--) {
             let p = pipes[i];
             p.x -= pipeSpeed;
 
-            // Draw
+            // Draw Pipes
             ctx.fillStyle = "#535353";
-            ctx.fillRect(p.x, 0, p.width, p.topH); // Top
+            ctx.fillRect(p.x, 0, p.width, p.topH);
             let botY = p.topH + pipeGap;
-            ctx.fillRect(p.x, botY, p.width, canvas.height - botY); // Bottom
+            ctx.fillRect(p.x, botY, p.width, canvas.height - botY);
 
-            // Collision
+            // Collision Check
             let bx = canvas.width / 4;
             let by = dino.y;
             
-            if (bx + size > p.x && bx < p.x + p.width) {
-                if (by < p.topH || by + size > botY) {
+            if (bx + dino.size > p.x && bx < p.x + p.width) {
+                if (by < p.topH || by + dino.size > botY) {
                     gameOver();
+                    return;
                 }
             }
 
-            // Score
+            // Score Check
             if (p.x + p.width < bx && !p.passed) {
                 score++;
                 scoreBoard.innerText = score;
                 p.passed = true;
-                speak(score);
+                
+                if (score >= targetScore) {
+                    gameWin();
+                    return;
+                } else {
+                    speak(score);
+                }
             }
 
             if (p.x + p.width < 0) pipes.splice(i, 1);
         }
         
-        // Floor
+        // Floor line
         ctx.beginPath();
         ctx.moveTo(0, canvas.height - 5);
         ctx.lineTo(canvas.width, canvas.height - 5);
@@ -430,21 +552,54 @@
         frameCount++;
     }
 
+    // --- 7. WIN / LOSS STATES ---
     function gameOver() {
-        state = 'GAMEOVER';
-        msgBox.innerText = "GAME OVER";
-        subText.innerText = "Score: " + score;
-        msgBox.style.display = 'block';
-        subText.style.display = 'block';
-        uiTitle.style.display = 'block';
-        retryBtn.style.display = 'inline-block';
-        speak("Game Over.");
+        gameState = 'GAMEOVER';
+        msgBoxText.parentElement.style.display = 'block';
+        progressWrapper.style.display = "none";
+        recalibrateBtn.classList.add('hidden');
+        
+        msgBoxText.innerText = `CRASHED! SCORE: ${score} / ${targetScore}`;
+        gameActionBtn.innerText = "TRY AGAIN";
+        gameActionBtn.classList.remove('hidden');
+        speak("Oops. Try again.");
+        
+        gameActionBtn.onclick = () => {
+            gameActionBtn.classList.add('hidden');
+            startCalibrationSequence(); // Re-calibrate on crash to be safe
+        };
     }
 
-    retryBtn.addEventListener('click', () => {
-        // Just restart the game loop variables, keep calibration
-        startGame();
-    });
+    function gameWin() {
+        gameState = 'WIN';
+        msgBoxText.parentElement.style.display = 'block';
+        progressWrapper.style.display = "none";
+        recalibrateBtn.classList.add('hidden');
+        
+        msgBoxText.innerText = "WORKOUT COMPLETE! 🏆";
+        gameActionBtn.innerText = "BACK TO WORK";
+        gameActionBtn.classList.remove('hidden');
+        speak("Great job. Break is over.");
+        
+        gameActionBtn.onclick = shutDownGameAndRestart;
+    }
+
+    function shutDownGameAndRestart() {
+        // Turn off camera & loops
+        isDetecting = false;
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+        
+        // Reset UI
+        gameUI.classList.add('hidden');
+        msgBoxText.parentElement.style.display = 'block';
+        gameActionBtn.classList.add('hidden');
+        
+        // Back to timer
+        startTimer();
+    }
 
 </script>
 </body>
