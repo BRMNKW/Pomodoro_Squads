@@ -1,6 +1,6 @@
 # [Pomodoro Squads](https://brmnkw.github.io/Pomodoro_Squads/) 🍅🏋️‍♂️
 
-**Pomodoro Squads** is an open-source productivity and health utility that forces you to take active screen breaks. It combines a Pomodoro focus timer with a computer-vision-powered fitness game. 
+**Pomodoro Squads** is a vibecoded open-source productivity and health utility built with Gemini 3.1 that forces you to take active screen breaks. It combines a Pomodoro focus timer with a computer-vision-powered fitness game. The purpose was simple: create a simple app without any coding skills whatsoever and make it fun. Tell im if I succeed or not. 
 
 When your focus time is up, the only way to silence the alarm and get back to work is to physically stand up and complete a set of squats by playing a body-controlled arcade game.
 
