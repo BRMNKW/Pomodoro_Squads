@@ -1,6 +1,6 @@
-# Squat Break 🍅🏋️‍♂️
+# [Pomodoro Squads](https://brmnkw.github.io/Pomodoro_Squads/) 🍅🏋️‍♂️
 
-**Squat Break** is an open-source productivity and health utility that forces you to take active screen breaks. It combines a Pomodoro focus timer with a computer-vision-powered fitness game. 
+**Pomodoro Squads** is an open-source productivity and health utility that forces you to take active screen breaks. It combines a Pomodoro focus timer with a computer-vision-powered fitness game. 
 
 When your focus time is up, the only way to silence the alarm and get back to work is to physically stand up and complete a set of squats by playing a body-controlled arcade game.
 
@@ -12,7 +12,7 @@ When your focus time is up, the only way to silence the alarm and get back to wo
 * **100% Client-Side:** No backend, no accounts, and absolutely no data collection. Everything runs locally in your browser.
 
 ## 🎮 How to Use
-1. [Open the app](https://brmnkw.github.io/Squad_Bird/).
+1. [Open the app](https://brmnkw.github.io/Pomodoro_Squads/).
 2. Select your Focus Time and your Squat Goal.
 3. Click **Start Focus Timer** and get to work!
 4. When the alarm sounds, the camera will activate. Step back so your full body is visible.
